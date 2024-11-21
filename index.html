@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BillCam Simplified</title>
+    <style>
+        /* Basic styling for the app */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .view {
+            display: none;
+        }
+        .active {
+            display: block;
+        }
+        .container {
+            display: flex;
+            justify-content: space-between;
+        }
+        .items-list, .drop-zone {
+            border: 1px solid #ccc;
+            padding: 10px;
+            min-height: 200px;
+            width: 45%;
+        }
+        .item {
+            background-color: #f0f0f0;
+            border: 1px solid #999;
+            margin: 5px 0;
+            padding: 5px;
+            cursor: move;
+        }
+        .drop-zone {
+            background-color: #e9e9e9;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 5px 10px;
+            margin: 5px;
+        }
+        input[type="text"] {
+            margin: 5px;
+            padding: 5px;
+        }
+        /* Styling for the draggable item view */
+        .company-members {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .member {
+            text-align: center;
+            width: 120px;
+            margin: 10px;
+        }
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #ddd;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto;
+        }
+        .member-items {
+            min-height: 50px;
+            border: 1px dashed #ccc;
+            padding: 5px;
+            margin-top: 5px;
+            text-align: left;
+        }
+        .mini-item {
+            font-size: 0.8em;
+            background-color: #f0f0f0;
+            border: 1px solid #999;
+            margin: 2px 0;
+            padding: 2px;
+            word-wrap: break-word;
+            cursor: move;
+        }
+    </style>
+</head>
+<body>
+    <!-- Start View: Initial screen with file upload -->
+    <div id="startView" class="view active">
+        <h2>Start View</h2>
+        <input type="file" id="receiptUpload" accept="image/*">
+        <button onclick="showView('scannedReceiptView')">Upload Receipt</button>
+    </div>
+
+    <!-- Scanned Receipt View: Display scanned items and options -->
+    <div id="scannedReceiptView" class="view">
+        <h2>Scanned Receipt View</h2>
+        <div id="scannedItems"></div>
+        <button onclick="addItem()">Add Item Manually</button>
+        <button onclick="showView('companyView')">Add Company Members</button>
+    </div>
+
+    <!-- Company View: Add and display company members -->
+    <div id="companyView" class="view">
+        <h2>Company View</h2>
+        <input type="text" id="companyMember" placeholder="Enter company member name">
+        <button onclick="addCompanyMember()">Add Member</button>
+        <div id="companyMembers"></div>
+        <button onclick="showView('draggableItemView')">Assign Items</button>
+    </div>
+
+    <!-- Draggable Item View: Assign items to company members -->
+    <div id="draggableItemView" class="view">
+        <h2>Draggable Item View</h2>
+        <div class="company-members" id="companyMembersAvatars"></div>
+        <div class="container">
+            <div class="items-list" id="itemsList"></div>
+        </div>
+        <button onclick="showView('startView')">Finish and Start Over</button>
+    </div>
+
+    <script>
+        // Global variables to store app data
+        let items = [];
+        let companyMembers = [];
+        let assignedItems = {};
+
+        // Function to switch between views
+        function showView(viewId) {
+            document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+
+            if (viewId === 'draggableItemView') {
+                populateDraggableItems();
+            }
+        }
+
+        // Function to add an item manually
+        function addItem() {
+            const newItem = prompt('Enter new item details:');
+            if (newItem) {
+                items.push(newItem);
+                updateScannedItems();
+            }
+        }
+
+        // Function to update the display of scanned items
+        function updateScannedItems() {
+            const scannedItems = document.getElementById('scannedItems');
+            scannedItems.innerHTML = '';
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.textContent = item;
+                scannedItems.appendChild(div);
+            });
+        }
+
+        // Function to add a company member
+        function addCompanyMember() {
+            const memberInput = document.getElementById('companyMember');
+            const memberName = memberInput.value.trim();
+            if (memberName) {
+                companyMembers.push(memberName);
+                updateCompanyMembers();
+                memberInput.value = '';
+            }
+        }
+
+        // Function to update the display of company members
+        function updateCompanyMembers() {
+            const membersDiv = document.getElementById('companyMembers');
+            membersDiv.innerHTML = '';
+            companyMembers.forEach(member => {
+                const div = document.createElement('div');
+                div.textContent = member;
+                membersDiv.appendChild(div);
+            });
+        }
+
+        // Function to populate the draggable items and company members
+        function populateDraggableItems() {
+            const itemsList = document.getElementById('itemsList');
+            const companyMembersAvatars = document.getElementById('companyMembersAvatars');
+            
+            itemsList.innerHTML = '';
+            companyMembersAvatars.innerHTML = '';
+
+            // Populate unassigned items
+            items.forEach(item => {
+                const div = createDraggableItem(item);
+                itemsList.appendChild(div);
+            });
+
+            // Populate company members and their assigned items
+            companyMembers.forEach(member => {
+                const memberDiv = document.createElement('div');
+                memberDiv.classList.add('member');
+                
+                const avatar = document.createElement('div');
+                avatar.classList.add('avatar');
+                avatar.textContent = member.charAt(0).toUpperCase();
+                
+                const name = document.createElement('div');
+                name.textContent = member;
+                
+                const memberItems = document.createElement('div');
+                memberItems.classList.add('member-items');
+                
+                memberDiv.appendChild(avatar);
+                memberDiv.appendChild(name);
+                memberDiv.appendChild(memberItems);
+                companyMembersAvatars.appendChild(memberDiv);
+
+                // Populate assigned items for each member
+                if (assignedItems[member]) {
+                    assignedItems[member].forEach(item => {
+                        const miniItem = createDraggableItem(item, true);
+                        memberItems.appendChild(miniItem);
+                    });
+                }
+            });
+
+            setupDragAndDrop();
+        }
+
+        // Function to create a draggable item element
+        function createDraggableItem(item, isMini = false) {
+            const div = document.createElement('div');
+            div.textContent = item;
+            div.classList.add(isMini ? 'mini-item' : 'item');
+            div.setAttribute('draggable', 'true');
+            return div;
+        }
+
+        // Function to set up drag and drop functionality
+        function setupDragAndDrop() {
+            const itemsList = document.getElementById('itemsList');
+            const companyMembersAvatars = document.getElementById('companyMembersAvatars');
+
+            itemsList.addEventListener('dragstart', handleDragStart);
+            companyMembersAvatars.addEventListener('dragstart', handleDragStart);
+            
+            itemsList.addEventListener('dragover', handleDragOver);
+            companyMembersAvatars.addEventListener('dragover', handleDragOver);
+
+            itemsList.addEventListener('drop', handleDrop);
+            companyMembersAvatars.addEventListener('drop', handleDrop);
+        }
+
+        // Function to handle the start of a drag operation
+        function handleDragStart(e) {
+            if (e.target.classList.contains('item') || e.target.classList.contains('mini-item')) {
+                e.dataTransfer.setData('text/plain', e.target.textContent);
+                e.dataTransfer.effectAllowed = 'move';
+            }
+        }
+
+        // Function to handle the dragover event
+        function handleDragOver(e) {
+            if (e.target.classList.contains('member-items') || e.target.id === 'itemsList') {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            }
+        }
+
+        // Function to handle the drop event
+        function handleDrop(e) {
+            e.preventDefault();
+            const data = e.dataTransfer.getData('text/plain');
+            const targetElement = e.target.closest('.member-items') || e.target.closest('#itemsList');
+            
+            if (targetElement) {
+                const sourceElement = document.elementFromPoint(e.clientX, e.clientY);
+                const sourceMember = sourceElement.closest('.member');
+                const targetMember = targetElement.closest('.member');
+
+                // Remove item from source
+                if (sourceMember) {
+                    const memberName = sourceMember.querySelector('div:nth-child(2)').textContent;
+                    assignedItems[memberName] = assignedItems[memberName].filter(item => item !== data);
+                } else {
+                    items = items.filter(item => item !== data);
+                }
+
+                // Add item to target
+                if (targetMember) {
+                    const memberName = targetMember.querySelector('div:nth-child(2)').textContent;
+                    if (!assignedItems[memberName]) {
+                        assignedItems[memberName] = [];
+                    }
+                    if (!assignedItems[memberName].includes(data)) {
+                        assignedItems[memberName].push(data);
+                    }
+                } else {
+                    if (!items.includes(data)) {
+                        items.push(data);
+                    }
+                }
+
+                populateDraggableItems();
+            }
+        }
+
+        // Initialize the app
+        document.getElementById('receiptUpload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                // In a real app, you'd process the image here
+                console.log('File uploaded:', file.name);
+                items = ['Item 1 - $10.00', 'Item 2 - $15.00', 'Item 3 - $20.00']; // Simulated items
+                updateScannedItems();
+                showView('scannedReceiptView');
+            }
+        });
+    </script>
+</body>
+</html>
